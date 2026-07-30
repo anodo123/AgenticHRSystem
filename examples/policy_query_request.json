@@ -1,0 +1,11 @@
+{
+  "trigger_type": "EMPLOYEE_REQUEST",
+  "employee_id": null,
+  "request_summary": "What is the applicable annual leave carry-forward policy?",
+  "request_data": {
+    "intent": "POLICY_QUERY",
+    "country": "US",
+    "policy_type": "leave",
+    "risk_level": "LOW"
+  }
+}

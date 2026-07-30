@@ -1,0 +1,30 @@
+{
+  "workflow_id": "WF-A1B2C3D4E5F6",
+  "id": 42,
+  "trigger_type": "EMPLOYEE_REQUEST",
+  "intent": "PAYROLL_ANOMALY",
+  "current_state": "WAITING_FOR_APPROVAL",
+  "previous_state": "COMPLIANCE_REVIEW",
+  "requester_id": 7,
+  "employee_id": 1001,
+  "request_summary": "Investigate and correct a missing overtime payment",
+  "retry_count": 0,
+  "max_retries": 3,
+  "error_message": null,
+  "paused_at": "2026-01-15T10:00:10",
+  "paused_reason": "Waiting for human approval",
+  "created_at": "2026-01-15T10:00:00",
+  "updated_at": "2026-01-15T10:00:10",
+  "completed_at": null,
+  "version": 11,
+  "transitions": [
+    {
+      "from_state": "COMPLIANCE_REVIEW",
+      "to_state": "WAITING_FOR_APPROVAL",
+      "reason": "Human approval required",
+      "triggered_by": "compliance",
+      "created_at": "2026-01-15T10:00:10"
+    }
+  ],
+  "evidence_count": 2
+}

@@ -1,0 +1,60 @@
+# Core Framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+python-multipart==0.0.6
+
+# Database
+sqlalchemy==2.0.23
+alembic==1.13.1
+psycopg2-binary==2.9.9
+pgvector==0.2.4
+
+# Vector Store & Embeddings
+numpy==1.24.3
+
+# Authentication & Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+cryptography==41.0.7
+PyJWT==2.8.1
+
+# HTTP & API
+httpx==0.25.2
+aiohttp==3.9.1
+
+# Task Scheduling
+apscheduler==3.10.4
+
+# Validation & Serialization
+python-dateutil==2.8.2
+
+# Logging & Observability
+structlog==23.2.0
+python-json-logger==2.0.7
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+httpx==0.25.2
+
+# Code Quality
+ruff==0.1.8
+black==23.12.0
+isort==5.13.2
+mypy==1.7.1
+
+# Development
+python-dotenv==1.0.0
+ipython==8.18.1
+
+# PDF & Document Processing (optional, for policy ingestion)
+PyPDF2==3.0.1
+python-docx==0.8.11
+markdown==3.5.1
+
+# Utilities
+python-multipart==0.0.6
+pendulum==2.1.2

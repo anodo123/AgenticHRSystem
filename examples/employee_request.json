@@ -1,0 +1,17 @@
+{
+  "trigger_type": "EMPLOYEE_REQUEST",
+  "employee_id": null,
+  "request_summary": "Investigate and correct a missing overtime payment for the latest payroll period",
+  "request_data": {
+    "intent": "PAYROLL_ANOMALY",
+    "field": "overtime_amount",
+    "observed_value": 100.0,
+    "expected_value": 150.0,
+    "risk_level": "HIGH",
+    "financial_impact": "MEDIUM",
+    "country": "US",
+    "required_approver_roles": [
+      "HR_ADMIN"
+    ]
+  }
+}

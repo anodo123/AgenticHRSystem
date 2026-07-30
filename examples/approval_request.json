@@ -1,0 +1,15 @@
+{
+  "workflow_id": "WF-A1B2C3D4E5F6",
+  "proposed_action": "Correct the latest overtime amount from 100.00 to 150.00",
+  "affected_employee_id": 1001,
+  "risk_level": "HIGH",
+  "financial_impact": "MEDIUM",
+  "policy_references": [
+    "POL-OVERTIME-001"
+  ],
+  "evidence_summary": "Payroll record and overtime policy were reviewed.",
+  "required_approver_roles": [
+    "HR_ADMIN"
+  ],
+  "expiry_hours": 48
+}
