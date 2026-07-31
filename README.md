@@ -1,6 +1,6 @@
-# DARWINBOXAI — Governed HR Agent Platform
+# Agentic HR AI - Governed HR Agent Platform
 
-DARWINBOXAI is an interview-scale HR operations platform for employees, HR teams,
+Agentic HR AI is an interview-scale HR operations platform for employees, HR teams,
 approvers, and auditors. It turns HR questions and anomalies into persisted,
 auditable workflows that combine LLM reasoning with deterministic policy,
 authorization, approval, scheduling, and data-mutation controls. The strongest
@@ -12,28 +12,179 @@ approval before an idempotent adapter action is applied.
 
 ## Start Here
 
-### Run the project
+### Prerequisites
 
-Run the following commands from the project root:
+- Docker Desktop running with Docker Compose enabled
+- An OpenAI Platform API key with access to the model configured by `LLM_MODEL`
+- Ports `3000`, `8000`, and `5432` available
+
+### Start everything with Docker
+
+Open PowerShell in the repository root:
 
 ```powershell
-cd <project-root>
-$env:OPENAI_API_KEY="<your-openai-api-key>"
-docker compose up --build
+cd C:\path\to\AgenticHRSystem
+$env:OPENAI_API_KEY="<your-real-openai-api-key>"
+docker compose up --build -d
+docker compose ps
 ```
 
-After the services start:
+The first build downloads the PostgreSQL/pgvector, Python, and Node images and may
+take several minutes. A successful `docker compose ps` shows all three services as
+healthy:
 
-- Frontend: `http://localhost:3000`
-- Backend API: `http://localhost:8000`
-- API documentation: `http://localhost:8000/api/docs`
-- Health check: `http://localhost:8000/health`
+```text
+darwinboxai_postgres   healthy   5432
+darwinboxai_backend    healthy   8000
+darwinboxai_frontend   healthy   3000
+```
 
-To stop the project:
+Open:
+
+- Web UI: [http://localhost:3000](http://localhost:3000)
+- Swagger/OpenAPI: [http://localhost:8000/api/docs](http://localhost:8000/api/docs)
+- Liveness: [http://localhost:8000/health](http://localhost:8000/health)
+- Readiness: [http://localhost:8000/ready](http://localhost:8000/ready)
+
+Expected health responses:
+
+```json
+{"status":"ok","service":"DARWINBOXAI"}
+```
+
+```json
+{"status":"ready","database":"connected"}
+```
+
+### Database migration and seed behavior
+
+The backend startup command automatically performs these steps in order:
+
+```text
+alembic upgrade head
+python -m scripts.seed_db
+uvicorn app.main:app
+```
+
+The seed operation is idempotent: restarting the stack does not duplicate users or
+the fixed demo employees. It creates permissions, roles, demo users, five fictional
+employees, and sample payroll records.
+
+Seeded login accounts all use password `demo123!`:
+
+| Username | Role |
+|---|---|
+| `employee` | `EMPLOYEE` |
+| `manager` | `MANAGER` |
+| `payroll` | `PAYROLL_SPECIALIST` |
+| `compliance` | `COMPLIANCE_OFFICER` |
+| `admin` | `HR_ADMIN` |
+| `sysadmin` | `SYSTEM_ADMIN` / superuser |
+
+Recommended UI login:
+
+```text
+Username: admin
+Password: demo123!
+```
+
+To run the seed manually inside an already running backend container:
+
+```powershell
+docker compose exec backend python -m scripts.seed_db
+```
+
+### Use the web UI
+
+1. Sign in at `http://localhost:3000` with `admin` / `demo123!`.
+2. Open **Admin -> Employees** to view seeded employee records.
+3. Open **Workflows -> New workflow**, enter a request summary and employee database
+   ID, then create the workflow.
+4. Open the workflow row and click **Run agents**.
+5. Follow the persisted state timeline.
+6. If the state becomes `WAITING_FOR_APPROVAL`, open **Approvals**, review and
+   approve/reject it, return to the workflow, and click **Resume agents**.
+7. A successful terminal run ends in `COMPLETED`.
+8. Scroll to **Agent outputs -> Agent decisions** to inspect every structured agent
+   response. The Action card shows `NO_ACTION` or the proposed mutation; the
+   Compliance card shows `ALLOW`, `REQUIRE_APPROVAL`, `DENY`, or `ESCALATE`.
+9. Use **Audit trail** to inspect persisted operational events.
+
+A workflow can complete with `NO_ACTION` when the request lacks evidence of an
+expected value. For a deterministic insertion, correction, approval, and mutation
+demo, use the Postman collection below.
+
+### Run the complete Postman demo
+
+Import:
+
+[`postman/AgenticHRSystem.postman_collection.json`](postman/AgenticHRSystem.postman_collection.json)
+
+No separate Postman environment is required. Run the entire collection in its saved
+order. Collection scripts automatically capture tokens, employee ID, policy ID,
+workflow ID, and approval ID.
+
+The collection performs:
+
+```text
+health/readiness
+-> employee and admin login
+-> employee insertion
+-> policy insertion/search
+-> high-risk data-correction workflow
+-> five-agent execution
+-> HR admin approval
+-> approved HRIS mutation
+-> employee/timeline/audit/incident verification
+```
+
+### Logs, restart, stop, and reset
+
+Follow all logs:
+
+```powershell
+docker compose logs -f
+```
+
+Backend-only logs:
+
+```powershell
+docker compose logs -f backend
+```
+
+Restart the existing containers:
+
+```powershell
+docker compose up -d
+```
+
+Stop containers while preserving database data:
 
 ```powershell
 docker compose down
 ```
+
+Delete containers and all local PostgreSQL data, then recreate a clean seeded system:
+
+```powershell
+docker compose down -v
+$env:OPENAI_API_KEY="<your-real-openai-api-key>"
+docker compose up --build -d
+```
+
+`docker compose down -v` permanently removes local demo workflows, approvals,
+policies, audit events, and inserted employee records.
+
+### Common startup issues
+
+| Symptom | Check |
+|---|---|
+| Compose says `OPENAI_API_KEY` is required | Set `$env:OPENAI_API_KEY` in the same PowerShell session |
+| `/ready` returns `503` | Check `docker compose logs backend` and confirm the API key/database |
+| Login says invalid credentials | Use exactly `admin` / `demo123!`; hard-refresh with `Ctrl+Shift+R` |
+| UI still shows an older build | Run `docker compose up --build -d` and hard-refresh |
+| Workflow becomes `FAILED` | Open its timeline/Agent decisions and check backend logs |
+| Ports are already allocated | Stop the other service or change host-side Compose port mappings |
 
 ### Which document should I read?
 
@@ -274,7 +425,8 @@ See [docs/DATA_MODEL.md](docs/DATA_MODEL.md).
 ```powershell
 cd <project-root>
 $env:OPENAI_API_KEY="<runtime-secret>"
-docker compose up --build
+docker compose up --build -d
+docker compose ps
 ```
 
 The backend seed script runs during container startup. Open:
@@ -294,7 +446,7 @@ pip install -r requirements.txt
 Copy-Item .env.example .env
 # Set DATABASE_URL, JWT_SECRET_KEY, SECRET_KEY, and OPENAI_API_KEY in .env
 alembic -c alembic\alembic.ini upgrade head
-python scripts\seed_db.py
+python -m scripts.seed_db
 uvicorn app.main:app --reload
 ```
 
@@ -311,12 +463,14 @@ For production, moving it to a single dedicated worker is recommended.
 
 ## Reviewer Demo Flow
 
-1. Start Docker services and log in with a seeded demo role.
-2. Create the fictional payroll request in `examples/employee_request.json`.
-3. Run it and observe `WAITING_FOR_APPROVAL`.
-4. Log in as the required approver and approve the returned approval ID.
-5. Run the workflow again and verify `COMPLETED`.
-6. Read `/timeline`, `/audit/`, and `/evaluations`.
+1. Start Docker services and wait for all containers to become healthy.
+2. Log in to the UI as `admin` / `demo123!`.
+3. Show seeded employees under **Admin**.
+4. Import and run the bundled Postman collection for the structured high-risk
+   correction scenario.
+5. Observe `WAITING_FOR_APPROVAL`, approve as `HR_ADMIN`, and resume.
+6. Verify `COMPLETED`, the changed employee record, timeline, Agent decisions, audit
+   events, and incident memory.
 
 Exact commands and expected responses are in [docs/DEMO_GUIDE.md](docs/DEMO_GUIDE.md).
 
