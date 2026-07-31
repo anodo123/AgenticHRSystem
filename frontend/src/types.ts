@@ -9,6 +9,12 @@ export type Workflow = {
   updated_at: string; completed_at?: string; transitions?: Transition[]
   evidence_count?: number; retry_count?: number; max_retries?: number
   paused_at?: string; paused_reason?: string; error_message?: string
+  agent_executions?: AgentExecution[]
+}
+export type AgentExecution = {
+  agent_name: string; execution_order: number; success: boolean
+  output: Record<string, unknown>; error_message?: string
+  duration_ms?: number; created_at: string
 }
 export type Transition = {
   from_state: string; to_state: string; reason?: string

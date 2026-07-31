@@ -103,9 +103,14 @@ class OpenAIResponsesClient:
                     )
                 if response.is_error:
                     request_id = response.headers.get("x-request-id", "unknown")
+                    try:
+                        detail = response.json().get("error", {}).get("message")
+                    except (ValueError, AttributeError):
+                        detail = None
                     raise LLMResponseError(
                         f"OpenAI rejected request ({response.status_code}, "
                         f"request_id={request_id})"
+                        + (f": {detail}" if detail else "")
                     )
                 return self._extract(response.json())
             except (httpx.TimeoutException, httpx.NetworkError, httpx.HTTPStatusError) as exc:

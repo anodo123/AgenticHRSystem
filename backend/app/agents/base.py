@@ -71,7 +71,10 @@ class BaseAgent(ABC):
         if isinstance(value, list):
             return {
                 "type": "array",
-                "items": cls._schema(value[0]) if value else {},
+                # Strict structured outputs reject an unconstrained `items: {}`.
+                # Empty deterministic lists are replaced by the agent after the
+                # model call, so a string item schema keeps the request valid.
+                "items": cls._schema(value[0]) if value else {"type": "string"},
             }
         if value is None:
             return {"type": ["string", "null"]}

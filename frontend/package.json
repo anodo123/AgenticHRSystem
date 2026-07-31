@@ -2,7 +2,7 @@
   "name": "darwinboxai-frontend",
   "private": true,
   "version": "1.0.0",
-  "description": "DARWINBOXAI - Self-Healing HR Operations Platform Frontend",
+  "description": "Agentic HR AI - Self-Healing HR Operations Platform Frontend",
   "type": "module",
   "scripts": {
     "dev": "vite",

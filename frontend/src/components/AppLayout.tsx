@@ -15,7 +15,7 @@ export function AppLayout() {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div className="brand"><span className="brand-mark">D</span><div>DARWIN<span>AI</span></div></div>
+        <div className="brand"><span className="brand-mark">A</span><div>AGENTIC HR <span>AI</span></div></div>
         <div className="workspace-label">OPERATIONS</div>
         <nav>{nav.map(([path, label, icon]) => (
           <NavLink key={path} to={path} end={path === '/'}><i>{icon}</i>{label}</NavLink>

@@ -19,7 +19,7 @@ docker compose up --build -d
 docker compose ps
 ```
 
-The backend container runs `python scripts/seed_db.py` before Uvicorn. Wait until:
+The backend container runs `python -m scripts.seed_db` before Uvicorn. Wait until:
 
 ```powershell
 Invoke-RestMethod http://localhost:8000/health

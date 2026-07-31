@@ -58,19 +58,13 @@ def has_permission(permission_name: str):
         if current_user.is_superuser:
             return current_user
         
-        # Check if user has permission through any role
-        from app.models.user import Permission
-        has_perm = (
-            db.query(Permission)
-            .join(
-                User.roles,
-                Permission.roles,
-            )
-            .filter(
-                User.id == current_user.id,
-                Permission.name == permission_name,
-            )
-            .first()
+        # The authenticated user is attached to this session, so SQLAlchemy can
+        # load the role -> permission relationships without constructing an
+        # ambiguous multi-relationship join.
+        has_perm = any(
+            permission.name == permission_name
+            for role in current_user.roles
+            for permission in role.permissions
         )
         
         if not has_perm:

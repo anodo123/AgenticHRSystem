@@ -1,5 +1,6 @@
 """Database seed script."""
 from datetime import datetime, timedelta
+from decimal import Decimal
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 
@@ -299,8 +300,12 @@ def seed_sample_payroll(db: Session):
                     payroll_period=period,
                     gross_salary=emp.salary / 12,
                     overtime_amount=500 * (i + 1),  # Varying overtime amounts
-                    deductions=emp.salary / 12 * 0.15,
-                    net_salary=(emp.salary / 12) + (500 * (i + 1)) - (emp.salary / 12 * 0.15),
+                    deductions=emp.salary / 12 * Decimal("0.15"),
+                    net_salary=(
+                        (emp.salary / 12)
+                        + Decimal(500 * (i + 1))
+                        - (emp.salary / 12 * Decimal("0.15"))
+                    ),
                     status="PROCESSED",
                 )
                 db.add(record)

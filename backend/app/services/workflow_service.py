@@ -136,6 +136,7 @@ class WorkflowService:
 
         transitions = WorkflowRepository.get_workflow_transitions(db, workflow.id)
         evidence = WorkflowRepository.get_workflow_evidence(db, workflow.id)
+        executions = WorkflowRepository.get_agent_executions(db, workflow.id)
 
         return {
             "workflow_id": workflow.workflow_id,
@@ -165,6 +166,18 @@ class WorkflowService:
                     "created_at": t.created_at,
                 }
                 for t in transitions
+            ],
+            "agent_executions": [
+                {
+                    "agent_name": execution.agent_name,
+                    "execution_order": execution.execution_order,
+                    "success": bool(execution.success),
+                    "output": execution.output_data or {},
+                    "error_message": execution.error_message,
+                    "duration_ms": execution.execution_duration_ms,
+                    "created_at": execution.created_at,
+                }
+                for execution in executions
             ],
             "evidence_count": len(evidence),
         }

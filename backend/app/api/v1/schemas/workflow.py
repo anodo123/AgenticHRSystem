@@ -41,6 +41,16 @@ class WorkflowTransitionDetail(BaseModel):
     created_at: datetime
 
 
+class AgentExecutionDetail(BaseModel):
+    agent_name: str
+    execution_order: int
+    success: bool
+    output: Dict[str, Any]
+    error_message: Optional[str] = None
+    duration_ms: Optional[int] = None
+    created_at: datetime
+
+
 class WorkflowResponse(BaseModel):
     """Workflow response."""
 
@@ -65,6 +75,7 @@ class WorkflowResponse(BaseModel):
     completed_at: Optional[datetime]
     version: int
     transitions: List[WorkflowTransitionDetail]
+    agent_executions: List[AgentExecutionDetail]
     evidence_count: int
 
 
