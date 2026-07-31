@@ -1,7 +1,7 @@
 services:
   # PostgreSQL Database
   postgres:
-    image: postgres:15-alpine
+    image: pgvector/pgvector:pg15
     container_name: darwinboxai_postgres
     environment:
       POSTGRES_USER: postgres
@@ -45,7 +45,7 @@ services:
     command: >
       sh -c "
         alembic -c alembic/alembic.ini upgrade head &&
-        python scripts/seed_db.py &&
+        python -m scripts.seed_db &&
         uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
       "
     healthcheck:
