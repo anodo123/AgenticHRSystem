@@ -1,0 +1,920 @@
+{
+  "info": {
+    "_postman_id": "fd39d1cb-047e-4a86-a550-2d741538ad1c",
+    "name": "Agentic HR System - End-to-End Agent Demo",
+    "description": "Import this collection and run it in order. It authenticates seeded users, inserts an employee and policy, creates a high-risk data-correction workflow, runs the agents, captures and approves the generated approval, resumes execution, and verifies the final HRIS mutation. Docker must be running at http://localhost:8000 and the backend must have a valid OPENAI_API_KEY.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000"
+    },
+    {
+      "key": "employee_username",
+      "value": "employee"
+    },
+    {
+      "key": "admin_username",
+      "value": "admin"
+    },
+    {
+      "key": "demo_password",
+      "value": "demo123!"
+    },
+    {
+      "key": "employee_token",
+      "value": ""
+    },
+    {
+      "key": "admin_token",
+      "value": ""
+    },
+    {
+      "key": "run_id",
+      "value": ""
+    },
+    {
+      "key": "employee_id",
+      "value": ""
+    },
+    {
+      "key": "policy_id",
+      "value": ""
+    },
+    {
+      "key": "workflow_id",
+      "value": ""
+    },
+    {
+      "key": "workflow_db_id",
+      "value": ""
+    },
+    {
+      "key": "approval_id",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "00 - System Checks",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Checks that the FastAPI process is alive."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Backend is alive', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Readiness",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/ready",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ready"
+              ]
+            },
+            "description": "Checks database connectivity and required LLM configuration."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Backend is ready for agent execution', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().status).to.eql('ready');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 - Authentication",
+      "item": [
+        {
+          "name": "Login Employee Requester",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{employee_username}}\",\n  \"password\": \"{{demo_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Employee login succeeds', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.expect(body.access_token, 'employee access token').to.be.a('string').and.not.empty;",
+                  "pm.collectionVariables.set('employee_token', body.access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login HR Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{admin_username}}\",\n  \"password\": \"{{demo_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Admin login succeeds', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.expect(body.roles, 'admin roles').to.include('HR_ADMIN');",
+                  "pm.collectionVariables.set('admin_token', body.access_token);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - Insert Demo Data",
+      "item": [
+        {
+          "name": "Insert Employee",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const runId = Date.now().toString();",
+                  "pm.collectionVariables.set('run_id', runId);",
+                  "pm.collectionVariables.set('policy_id', `POL-DATA-${runId}`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Employee is inserted', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.expect(body.id, 'inserted employee ID').to.be.a('number');",
+                  "pm.collectionVariables.set('employee_id', body.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employee_number\": \"PM{{run_id}}\",\n  \"first_name\": \"Postman\",\n  \"last_name\": \"Demo\",\n  \"email\": \"postman.{{run_id}}@example.com\",\n  \"phone\": \"+1-555-0100\",\n  \"department\": \"Engineering\",\n  \"business_unit\": \"Platform\",\n  \"role\": \"Software Engineer\",\n  \"manager_id\": null,\n  \"hire_date\": \"2025-01-15T00:00:00Z\",\n  \"employment_status\": \"ACTIVE\",\n  \"employee_type\": \"FULL_TIME\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/employees/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "employees",
+                ""
+              ]
+            },
+            "description": "Inserts a unique employee using the seeded HR admin."
+          }
+        },
+        {
+          "name": "Insert Data Correction Policy",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Policy is inserted and chunked', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.policy_id).to.eql(pm.collectionVariables.get('policy_id'));",
+                  "  pm.expect(body.chunk_count).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"policy_id\": \"{{policy_id}}\",\n  \"title\": \"Controlled Employee Data Correction Policy\",\n  \"description\": \"Demo policy inserted by the Postman collection.\",\n  \"policy_type\": \"DATA_CORRECTION\",\n  \"country\": \"US\",\n  \"legal_entity\": \"Global\",\n  \"business_unit\": \"Platform\",\n  \"employee_type\": \"FULL_TIME\",\n  \"version\": \"1.0\",\n  \"effective_from\": \"2025-01-01T00:00:00Z\",\n  \"effective_to\": null,\n  \"confidentiality\": \"INTERNAL\",\n  \"source_file\": \"postman-demo-policy.txt\",\n  \"source_format\": \"txt\",\n  \"status\": \"ACTIVE\",\n  \"content\": \"Employee master-data corrections require evidence of the current and expected values. High-risk department, manager, role, employment status, or business-unit changes require approval from an HR_ADMIN before execution. Approved changes must be written through the controlled HRIS adapter and recorded in the audit timeline.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/rag/policies",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "rag",
+                "policies"
+              ]
+            },
+            "description": "Adds policy knowledge that the policy agent can retrieve."
+          }
+        },
+        {
+          "name": "Verify Policy Search",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Policy search returns a response', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json()).to.have.property('items');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employee_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/rag/policies/search?query=high-risk%20employee%20department%20data%20correction&country=US&legal_entity=Global&business_unit=Platform&employee_type=FULL_TIME&policy_type=DATA_CORRECTION&top_k=5&min_score=0",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "rag",
+                "policies",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "high-risk employee department data correction"
+                },
+                {
+                  "key": "country",
+                  "value": "US"
+                },
+                {
+                  "key": "legal_entity",
+                  "value": "Global"
+                },
+                {
+                  "key": "business_unit",
+                  "value": "Platform"
+                },
+                {
+                  "key": "employee_type",
+                  "value": "FULL_TIME"
+                },
+                {
+                  "key": "policy_type",
+                  "value": "DATA_CORRECTION"
+                },
+                {
+                  "key": "top_k",
+                  "value": "5"
+                },
+                {
+                  "key": "min_score",
+                  "value": "0"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Run Governed Agent Workflow",
+      "item": [
+        {
+          "name": "Create High-Risk Data Correction Workflow",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Workflow is created in RECEIVED state', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.state).to.eql('RECEIVED');",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('workflow_id', body.workflow_id);",
+                  "pm.collectionVariables.set('workflow_db_id', body.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employee_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"trigger_type\": \"EMPLOYEE_REQUEST\",\n  \"employee_id\": {{employee_id}},\n  \"request_summary\": \"Correct an incorrectly assigned Engineering department to People Operations under the controlled employee data correction policy\",\n  \"request_data\": {\n    \"intent\": \"DATA_CORRECTION\",\n    \"source_system\": \"HRIS\",\n    \"field\": \"department\",\n    \"observed_value\": \"Engineering\",\n    \"expected_value\": \"People Operations\",\n    \"risk_level\": \"HIGH\",\n    \"financial_impact\": \"LOW\",\n    \"country\": \"US\",\n    \"legal_entity\": \"Global\",\n    \"business_unit\": \"Platform\",\n    \"employee_type\": \"FULL_TIME\",\n    \"policy_type\": \"DATA_CORRECTION\",\n    \"required_approver_roles\": [\n      \"HR_ADMIN\"\n    ]\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/workflows/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "workflows",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Run Agents Until Human Approval",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Agents stop at approval gate', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.state).to.eql('WAITING_FOR_APPROVAL');",
+                  "  pm.expect(body.approval).to.be.an('object');",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('approval_id', body.approval.approval_id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employee_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/workflows/{{workflow_id}}/run",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "workflows",
+                "{{workflow_id}}",
+                "run"
+              ]
+            },
+            "description": "Makes the real configured LLM calls. The deterministic compliance gate forces this high-risk change to wait for HR_ADMIN approval."
+          }
+        },
+        {
+          "name": "Read Generated Approval",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Generated approval is pending', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().status).to.eql('PENDING');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/approvals/{{approval_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approvals",
+                "{{approval_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Approve as HR Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HR admin approves the change', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().status).to.eql('APPROVED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"comments\": \"Evidence, policy citation, and proposed HRIS department correction verified through Postman.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/approvals/{{approval_id}}/approve",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approvals",
+                "{{approval_id}}",
+                "approve"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Resume Agents and Execute Approved Change",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Approved workflow completes', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.state).to.eql('COMPLETED');",
+                  "  pm.expect(body.agent_outputs).to.have.property('adapter_execution');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employee_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/workflows/{{workflow_id}}/run",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "workflows",
+                "{{workflow_id}}",
+                "run"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Verify Outcome",
+      "item": [
+        {
+          "name": "Verify Employee Department Changed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HRIS mutation is persisted', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().department).to.eql('People Operations');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employee_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/employees/{{employee_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "employees",
+                "{{employee_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Workflow Timeline",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Timeline is available', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json()).to.have.property('transitions');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employee_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/workflows/{{workflow_id}}/timeline",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "workflows",
+                "{{workflow_id}}",
+                "timeline"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Audit Events",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Audit query succeeds', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json()).to.have.property('items');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/audit/?workflow_id={{workflow_db_id}}&limit=100",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "audit",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "workflow_id",
+                  "value": "{{workflow_db_id}}"
+                },
+                {
+                  "key": "limit",
+                  "value": "100"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Similar Resolved Incidents",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Incident memory can be searched', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json()).to.have.property('items');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employee_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/rag/incidents/search?query=incorrect%20employee%20department%20assignment&incident_type=DATA_CORRECTION&country=US&business_unit=Platform&top_k=5&min_score=0",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "rag",
+                "incidents",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "incorrect employee department assignment"
+                },
+                {
+                  "key": "incident_type",
+                  "value": "DATA_CORRECTION"
+                },
+                {
+                  "key": "country",
+                  "value": "US"
+                },
+                {
+                  "key": "business_unit",
+                  "value": "Platform"
+                },
+                {
+                  "key": "top_k",
+                  "value": "5"
+                },
+                {
+                  "key": "min_score",
+                  "value": "0"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
